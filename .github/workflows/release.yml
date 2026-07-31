@@ -1,0 +1,51 @@
+name: 自动构建并发布巨大化.exe
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: 下载仓库源码
+        uses: actions/checkout@v4
+
+      - name: 编译 Windows EXE
+        shell: powershell
+        run: |
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+
+          & $csc `
+            /nologo `
+            /target:winexe `
+            /platform:anycpu `
+            /optimize+ `
+            /out:"巨大化.exe" `
+            /reference:System.dll `
+            /reference:System.Drawing.dll `
+            /reference:System.Windows.Forms.dll `
+            /resource:"assets\xiaoqiang.png",xiaoqiang.png `
+            "src\CockroachPet.cs"
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: 保存构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: 巨大化-Windows
+          path: 巨大化.exe
+
+      - name: 添加 EXE 到当前 Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: 巨大化.exe
